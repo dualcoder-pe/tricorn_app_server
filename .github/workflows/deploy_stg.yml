@@ -56,7 +56,7 @@ jobs:
           APP: tricorn_app_server
           VERSION: ${{ steps.app-version.outputs.app_version }}
         run: |
-          docker buildx build --push --platform linux/arm64 -t $NAME/$APP:$VERSION -t $NAME/$APP:latest -f ./Dockerfile .
+          docker buildx build --push --platform linux/arm64 -t $NAME/$APP:$VERSION -t $NAME/$APP:$VERSION -f ./Dockerfile .
 
       - name: Notify on Slack if skipped
         if: steps.check-image.outputs.skip == 'true'
@@ -70,7 +70,8 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   deploy:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && needs.build.outputs.skip_deploy == 'false'
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+      #&& needs.build.outputs.skip_deploy == 'false'
     needs: build
     runs-on: ubuntu-latest
 
