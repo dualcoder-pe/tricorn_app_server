@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       skip_deploy: ${{ steps.check-image.outputs.skip }}
+      app_version: ${{ steps.app-version.outputs.app_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -78,12 +79,12 @@ jobs:
         uses: appleboy/ssh-action@master
         env:
           APP: tricorn_app_server
-          VERSION: ${{ steps.app-version.outputs.app_version }}
+          VERSION: ${{ needs.build.outputs.app_version }}
         with:
           username: ${{ secrets.VM_USERNAME }}
           host: ${{ secrets.STG_VM_IP }}
           key: ${{ secrets.STG_SSH_KEY }}
-          envs: APP
+          envs: APP,VERSION
 
           script: |
             whoami
