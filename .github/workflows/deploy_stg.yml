@@ -1,0 +1,108 @@
+name: Deploy tricorn app server to staging
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - "staging"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      skip_deploy: ${{ steps.check-image.outputs.skip }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup docker build
+        uses: docker/setup-buildx-action@v2
+
+      - name: Get App Version
+        id: app-version
+        run: |
+          app_version=$(cat version.txt)
+          echo "App version: $app_version"
+          echo "app_version=$app_version" >> $GITHUB_OUTPUT
+
+      - name: Docker login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_LOGIN_ID }}
+          password: ${{ secrets.DOCKER_LOGIN_RW_PWD }}
+
+      - name: Check if Docker image exists
+        id: check-image
+        run: |
+          if docker manifest inspect ${{ secrets.DOCKER_LOGIN_ID }}/tricorn_app_server:${{ steps.app-version.outputs.app_version }} >/dev/null 2>&1; then
+            echo "Image with version ${{ steps.app-version.outputs.app_version }} already exists. Halting build and deploy."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Image with version ${{ steps.app-version.outputs.app_version }} does not exist. Proceeding."
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Docker hub release
+        if: steps.check-image.outputs.skip == 'false'
+        env:
+          NAME: ${{ secrets.DOCKER_LOGIN_ID }}
+          APP: tricorn_app_server
+          VERSION: ${{ steps.app-version.outputs.app_version }}
+        run: |
+          docker buildx build --push --platform linux/arm64 -t $NAME/$APP:$VERSION -t $NAME/$APP:latest -f ./Dockerfile .
+
+      - name: Notify on Slack if skipped
+        if: steps.check-image.outputs.skip == 'true'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          author_name: Tricorn app server build skipped
+          text: "Build and deploy skipped because Docker image for version ${{ steps.app-version.outputs.app_version }} already exists."
+          fields: repo,ref,workflow
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  deploy:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && needs.build.outputs.skip_deploy == 'false'
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: OCI Docker run staging
+        uses: appleboy/ssh-action@master
+        env:
+          APP: tricorn_app_server
+          VERSION: ${{ steps.app-version.outputs.app_version }}
+        with:
+          username: ${{ secrets.VM_USERNAME }}
+          host: ${{ secrets.STG_VM_IP }}
+          key: ${{ secrets.STG_SSH_KEY }}
+          envs: APP
+
+          script: |
+            whoami
+            cd tricorn_app_server_staging
+            rm -f docker-compose.yml
+            git restore .
+            git pull
+            mv docker-compose-stg.yml docker-compose.yml
+            docker login -u ${{ secrets.DOCKER_LOGIN_ID }} -p ${{ secrets.DOCKER_LOGIN_R_PWD }}
+            docker compose down --rmi all
+            docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION
+            docker compose up -d
+
+      - name: action-slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          author_name: Tricorn app server deployed to staging
+          fields: action,eventName,ref,workflow,job,took
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # required
+        if: always()

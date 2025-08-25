@@ -1,0 +1,112 @@
+name: Deploy tricorn app server to prod
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - "main"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Get App Version from file
+      id: app-version
+      run: |
+        VERSION=$(curl -s --request GET \
+          --url https://api.github.com/repos/${{ github.repository }}/contents/server/version.txt?ref=${{ github.sha }} \
+          --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          --header "Accept: application/vnd.github.v3.raw")
+        echo "app_version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Get Currently Deployed Version
+      id: deployed-version
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.VM1_IP }}
+        username: ${{ secrets.VM_USERNAME }}
+        key: ${{ secrets.VM1_SSH_KEY }}
+        script: |
+          CURRENT_IMAGE=$(docker ps --filter "ancestor=${{ secrets.DOCKER_LOGIN_ID }}/tricorn_app_server" --format "{{.Image}}")
+          if [ -z "$CURRENT_IMAGE" ]; then
+            echo "No container running from image ${{ secrets.DOCKER_LOGIN_ID }}/tricorn_app_server. Proceeding with deployment."
+            echo "deployed_version=none" >> $GITHUB_OUTPUT
+          else
+            CURRENT_VERSION=$(echo "$CURRENT_IMAGE" | head -n 1 | cut -d: -f2)
+            echo "Currently deployed version is $CURRENT_VERSION"
+            echo "deployed_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+    - name: Deploy to VM1
+      if: steps.app-version.outputs.app_version != steps.deployed-version.outputs.deployed_version
+      uses: appleboy/ssh-action@master
+      env:
+        APP: tricorn_app_server
+        VERSION: ${{ steps.app-version.outputs.app_version }}
+      with:
+        username: ${{ secrets.VM_USERNAME }}
+        host: ${{ secrets.VM1_IP }}
+        key: ${{ secrets.VM1_SSH_KEY }}
+        envs: APP,VERSION
+        script: |
+          whoami
+          cd tricorn_app_docker
+          rm docker-compose.yml
+          git restore .
+          git pull
+          mv docker-compose-prod.yml docker-compose.yml
+          docker login -u ${{ secrets.DOCKER_LOGIN_ID }} -p ${{ secrets.DOCKER_LOGIN_R_PWD }}
+          docker compose down --rmi all
+          docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION
+          docker compose up -d
+
+    - name: Deploy to VM2
+      if: steps.app-version.outputs.app_version != steps.deployed-version.outputs.deployed_version
+      uses: appleboy/ssh-action@master
+      env:
+        APP: tricorn_app
+        VERSION: ${{ steps.app-version.outputs.app_version }}
+      with:
+        username: ${{ secrets.VM_USERNAME }}
+        host: ${{ secrets.VM2_IP }}
+        key: ${{ secrets.VM2_SSH_KEY }}
+        envs: APP,VERSION
+        script: |
+          whoami
+          cd tricorn_app_docker
+          rm -f docker-compose.yml
+          git restore .
+          git pull
+          mv docker-compose-prod.yml docker-compose.yml
+          docker login -u ${{ secrets.DOCKER_LOGIN_ID }} -p ${{ secrets.DOCKER_LOGIN_R_PWD }}
+          docker compose down --rmi all
+          docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION
+          docker compose up -d
+
+    - name: Notify on Slack if skipped
+      if: steps.app-version.outputs.app_version == steps.deployed-version.outputs.deployed_version
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        author_name: Tricorn app server deployment skipped
+        text: "Deployment skipped because version ${{ steps.app-version.outputs.app_version }} is already deployed on VM1."
+        fields: repo,ref,workflow
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: action-slack (on deploy)
+      if: always() && (steps.app-version.outputs.app_version != steps.deployed-version.outputs.deployed_version)
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        author_name: Tricorn app server deployment finished
+        fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # required

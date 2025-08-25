@@ -1,0 +1,31 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+fastapi = "*"
+uvicorn = { extras = ["standard"], version = "*" }
+pymongo = "*"
+motor = "*"
+requests = "*"
+pyjwt = "*"
+jwcrypto = "*"
+mysql = "*"
+pymysql = "*"
+sqlalchemy = "*"
+alembic = "*"
+python-logstash = "*"
+firebase-admin = "*"
+pydantic = "*"
+ccxt = "*"
+python-dotenv = "*"
+pandas = "*"
+yfinance = "*"
+matplotlib = "*"
+scipy = "*"
+[dev-packages]
+
+[requires]
+python_version = "3.11"
+python_full_version = "3.11.10"
