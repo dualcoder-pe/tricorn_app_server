@@ -32,7 +32,7 @@ jobs:
       with:
         host: ${{ secrets.VM1_IP }}
         username: ${{ secrets.VM_USERNAME }}
-        key: ${{ secrets.VM1_SSH_KEY }}
+        key: ${{ secrets.SSH_KEY }}
         script: |
           CURRENT_IMAGE=$(docker ps --filter "ancestor=${{ secrets.DOCKER_LOGIN_ID }}/tricorn_app_server" --format "{{.Image}}")
           if [ -z "$CURRENT_IMAGE" ]; then
@@ -53,7 +53,7 @@ jobs:
       with:
         username: ${{ secrets.VM_USERNAME }}
         host: ${{ secrets.VM1_IP }}
-        key: ${{ secrets.VM1_SSH_KEY }}
+        key: ${{ secrets.SSH_KEY }}
         envs: APP,VERSION
         script: |
           whoami
@@ -76,7 +76,7 @@ jobs:
       with:
         username: ${{ secrets.VM_USERNAME }}
         host: ${{ secrets.VM2_IP }}
-        key: ${{ secrets.VM2_SSH_KEY }}
+        key: ${{ secrets.SSH_KEY }}
         envs: APP,VERSION
         script: |
           whoami

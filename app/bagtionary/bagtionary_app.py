@@ -45,3 +45,11 @@ bagtionary_router = APIRouter(prefix="/bagtionary", tags=["bagtionary"])
 
 bagtionary_router.include_router(product_router)
 bagtionary_router.include_router(home_router)
+
+api_router = APIRouter(
+    prefix="/api",  # This will make the new paths like /api/home/... and /api/product/...
+    tags=["bagtionary/api"]
+)
+
+api_router.include_router(home_router)
+api_router.include_router(product_router)
