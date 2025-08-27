@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 
-from app.bagtionary.app import bagtionary_router
+from app.bagtionary.bagtionary_app import bagtionary_router, api_router
 from app.trifin.app import trifin_router
 from core.common.middleware.logger_middleware import LoggerMiddleware
 from core.db.mongo import mongo
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
 
     # 라우터 설정
     # app.include_router(auth_router)
+    app.include_router(api_router)
     app.include_router(bagtionary_router)
     app.include_router(trifin_router)
 
