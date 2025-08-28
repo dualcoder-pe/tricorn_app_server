@@ -4,6 +4,7 @@ from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 
 from app.bagtionary.bagtionary_app import bagtionary_router, api_router
+from app.bagtionary.common.middleware.verify_middleware import VerifyMiddleware
 from app.trifin.app import trifin_router
 from core.common.middleware.logger_middleware import LoggerMiddleware
 from core.db.mongo import mongo
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
 
     # 미들웨어 설정
     app.add_middleware(LoggerMiddleware)
+    app.add_middleware(VerifyMiddleware)
 
     # Firebase 인증 미들웨어 설정
     # auth_service = AuthService()
