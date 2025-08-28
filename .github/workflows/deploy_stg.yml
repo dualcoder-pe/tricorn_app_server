@@ -56,7 +56,7 @@ jobs:
           APP: tricorn_app_server
           VERSION: ${{ steps.app-version.outputs.app_version }}
         run: |
-          docker buildx build --push --platform linux/arm64 -t $NAME/$APP:$VERSION -t $NAME/$APP:$VERSION -f ./Dockerfile .
+          docker buildx build --push --platform linux/arm64 -t $NAME/$APP:$VERSION -t $NAME/$APP:latest -f ./Dockerfile .
 
       - name: Notify on Slack if skipped
         if: steps.check-image.outputs.skip == 'true'
