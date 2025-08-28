@@ -37,7 +37,7 @@ jobs:
           CURRENT_IMAGE=$(docker ps --filter "ancestor=${{ secrets.DOCKER_LOGIN_ID }}/tricorn_app_server" --format "{{.Image}}")
           if [ -z "$CURRENT_IMAGE" ]; then
             echo "No container running from image ${{ secrets.DOCKER_LOGIN_ID }}/tricorn_app_server. Proceeding with deployment."
-            echo "deployed_version=none" >> $GITHUB_OUTPUT
+            echo "deployed_version=0.0.0" >> $GITHUB_OUTPUT
           else
             CURRENT_VERSION=$(echo "$CURRENT_IMAGE" | head -n 1 | cut -d: -f2)
             echo "Currently deployed version is $CURRENT_VERSION"
