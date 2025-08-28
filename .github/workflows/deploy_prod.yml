@@ -21,7 +21,7 @@ jobs:
       id: app-version
       run: |
         VERSION=$(curl -s --request GET \
-          --url https://api.github.com/repos/${{ github.repository }}/contents/server/version.txt?ref=main \
+          --url https://api.github.com/repos/tricorn_app_server/contents/version.txt?ref=main \
           --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
           --header "Accept: application/vnd.github.v3.raw")
         echo "app_version=$VERSION" >> $GITHUB_OUTPUT
