@@ -25,6 +25,7 @@ jobs:
           --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
           --header "Accept: application/vnd.github.v3.raw")
         echo "app_version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Retrieved version: $VERSION"
 
     - name: Get Currently Deployed Version
       id: deployed-version
@@ -34,18 +35,46 @@ jobs:
         username: ${{ secrets.VM_USERNAME }}
         key: ${{ secrets.SSH_KEY }}
         script: |
+          # 현재 배포된 컨테이너에서 버전 정보 추출
           CURRENT_IMAGE=$(docker ps --filter "ancestor=${{ secrets.DOCKER_LOGIN_ID }}/tricorn_app_server" --format "{{.Image}}")
+          
           if [ -z "$CURRENT_IMAGE" ]; then
             echo "No container running from image ${{ secrets.DOCKER_LOGIN_ID }}/tricorn_app_server. Proceeding with deployment."
-            echo "deployed_version=0.0.0" >> "$GITHUB_OUTPUT"
+            echo "0.0.0"
           else
             CURRENT_VERSION=$(echo "$CURRENT_IMAGE" | head -n 1 | cut -d: -f2)
             echo "Currently deployed version is $CURRENT_VERSION"
-            echo "deployed_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+            echo "$CURRENT_VERSION"
           fi
+        script_stop: true
+
+    - name: Set Deployed Version Output
+      id: set-deployed-version
+      run: |
+        # SSH 액션의 출력에서 마지막 줄을 버전으로 사용
+        DEPLOYED_VERSION=$(echo '${{ steps.deployed-version.outputs.stdout }}' | tail -n 1 | tr -d '\n\r')
+        echo "deployed_version=$DEPLOYED_VERSION" >> $GITHUB_OUTPUT
+        echo "Set deployed version: $DEPLOYED_VERSION"
+
+    - name: Compare Versions
+      id: compare-versions
+      run: |
+        APP_VERSION="${{ steps.app-version.outputs.app_version }}"
+        DEPLOYED_VERSION="${{ steps.set-deployed-version.outputs.deployed_version }}"
+        
+        echo "App version: $APP_VERSION"
+        echo "Deployed version: $DEPLOYED_VERSION"
+        
+        if [ "$APP_VERSION" != "$DEPLOYED_VERSION" ]; then
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+          echo "Deployment needed: versions differ"
+        else
+          echo "should_deploy=false" >> $GITHUB_OUTPUT
+          echo "Deployment skipped: versions are the same"
+        fi
 
     - name: Deploy to VM1
-      if: steps.app-version.outputs.app_version != steps.deployed-version.outputs.deployed_version
+      if: steps.compare-versions.outputs.should_deploy == 'true'
       uses: appleboy/ssh-action@master
       env:
         APP: tricorn_app_server
@@ -56,22 +85,47 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         envs: APP,VERSION
         script: |
+          set -e  # 오류 발생 시 즉시 중단
+          
+          echo "Starting deployment of $APP:$VERSION to VM1"
           whoami
-          cd tricorn_app_docker
-          rm docker-compose.yml
-          git restore .
-          git pull
-          mv docker-compose-prod.yml docker-compose.yml
-          docker login -u ${{ secrets.DOCKER_LOGIN_ID }} -p ${{ secrets.DOCKER_LOGIN_R_PWD }}
-          docker compose down --rmi all
-          docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION
-          docker compose up -d
+          
+          # 배포 디렉토리로 이동
+          cd tricorn_app_docker || { echo "Failed to change directory"; exit 1; }
+          
+          # Git 저장소 상태 복원 및 업데이트
+          rm -f docker-compose.yml
+          git restore . || echo "No changes to restore"
+          git pull || { echo "Failed to pull latest changes"; exit 1; }
+          
+          # 프로덕션 설정 적용
+          mv docker-compose-prod.yml docker-compose.yml || { echo "Failed to setup production config"; exit 1; }
+          
+          # Docker 로그인
+          echo "Logging into Docker registry"
+          docker login -u ${{ secrets.DOCKER_LOGIN_ID }} -p ${{ secrets.DOCKER_LOGIN_R_PWD }} || { echo "Docker login failed"; exit 1; }
+          
+          # 기존 컨테이너 정리
+          echo "Stopping existing containers"
+          docker compose down --rmi all || echo "No existing containers to stop"
+          
+          # 새 이미지 다운로드
+          echo "Pulling new image: ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION"
+          docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION || { echo "Failed to pull image"; exit 1; }
+          
+          # 새 컨테이너 시작
+          echo "Starting new containers"
+          docker compose up -d || { echo "Failed to start containers"; exit 1; }
+          
+          # 배포 완료 확인
+          echo "Deployment completed successfully"
+          docker ps --filter "ancestor=${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION"
 
     - name: Deploy to VM2
-      if: steps.app-version.outputs.app_version != steps.deployed-version.outputs.deployed_version
+      if: steps.compare-versions.outputs.should_deploy == 'true'
       uses: appleboy/ssh-action@master
       env:
-        APP: tricorn_app
+        APP: tricorn_app_server  # VM2도 동일한 이미지명 사용하도록 수정
         VERSION: ${{ steps.app-version.outputs.app_version }}
       with:
         username: ${{ secrets.VM_USERNAME }}
@@ -79,19 +133,44 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         envs: APP,VERSION
         script: |
+          set -e  # 오류 발생 시 즉시 중단
+          
+          echo "Starting deployment of $APP:$VERSION to VM2"
           whoami
-          cd tricorn_app_docker
+          
+          # 배포 디렉토리로 이동
+          cd tricorn_app_docker || { echo "Failed to change directory"; exit 1; }
+          
+          # Git 저장소 상태 복원 및 업데이트
           rm -f docker-compose.yml
-          git restore .
-          git pull
-          mv docker-compose-prod.yml docker-compose.yml
-          docker login -u ${{ secrets.DOCKER_LOGIN_ID }} -p ${{ secrets.DOCKER_LOGIN_R_PWD }}
-          docker compose down --rmi all
-          docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION
-          docker compose up -d
+          git restore . || echo "No changes to restore"
+          git pull || { echo "Failed to pull latest changes"; exit 1; }
+          
+          # 프로덕션 설정 적용
+          mv docker-compose-prod.yml docker-compose.yml || { echo "Failed to setup production config"; exit 1; }
+          
+          # Docker 로그인
+          echo "Logging into Docker registry"
+          docker login -u ${{ secrets.DOCKER_LOGIN_ID }} -p ${{ secrets.DOCKER_LOGIN_R_PWD }} || { echo "Docker login failed"; exit 1; }
+          
+          # 기존 컨테이너 정리
+          echo "Stopping existing containers"
+          docker compose down --rmi all || echo "No existing containers to stop"
+          
+          # 새 이미지 다운로드
+          echo "Pulling new image: ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION"
+          docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION || { echo "Failed to pull image"; exit 1; }
+          
+          # 새 컨테이너 시작
+          echo "Starting new containers"
+          docker compose up -d || { echo "Failed to start containers"; exit 1; }
+          
+          # 배포 완료 확인
+          echo "Deployment completed successfully"
+          docker ps --filter "ancestor=${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION"
 
     - name: Notify on Slack if skipped
-      if: steps.app-version.outputs.app_version == steps.deployed-version.outputs.deployed_version
+      if: steps.compare-versions.outputs.should_deploy == 'false'
       uses: 8398a7/action-slack@v3
       with:
         status: success
@@ -102,11 +181,14 @@ jobs:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
     - name: action-slack (on deploy)
-      if: always() && (steps.app-version.outputs.app_version != steps.deployed-version.outputs.deployed_version)
+      if: always() && steps.compare-versions.outputs.should_deploy == 'true'
       uses: 8398a7/action-slack@v3
       with:
         status: ${{ job.status }}
         author_name: Tricorn app server deployment finished
+        text: |
+          Version ${{ steps.app-version.outputs.app_version }} deployment to production
+          Previous version: ${{ steps.set-deployed-version.outputs.deployed_version }}
         fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
       env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # required
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
