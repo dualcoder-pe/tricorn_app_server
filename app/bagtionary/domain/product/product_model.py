@@ -9,38 +9,38 @@ from core.util.op_util import safe_dict_value
 
 class GetProductListResult(BaseModel):
     products: list['ThumbnailProductVO'] = Field([])
-    last_page: int = Field(-1, serialization_alias="lastPage")
+    last_page: int = Field(-1, alias="lastPage", validation_alias="last_page")
     brands: Optional[list[str]] = Field(None)
 
 
 class GetProductResult(BaseModel):
-    raw_id: str = Field(..., serialization_alias="rawId")
+    raw_id: str = Field(..., alias="rawId", validation_alias="raw_id")
     brand: str
     type: str
     language: str
     country: str
     price: list['PriceVO']
-    latest_price: 'PriceVO' = Field(..., serialization_alias="latestPrice")
-    product_url: str = Field(..., serialization_alias="productUrl")
+    latest_price: 'PriceVO' = Field(..., alias="latestPrice", validation_alias="latest_price")
+    product_url: str = Field(..., alias="productUrl", validation_alias="product_url")
     name: str
     material: str
     description: str
     spec: str
     color: list[str]
-    color_code: list[str] = Field([], serialization_alias="colorCode")
-    image_url: str = Field(..., serialization_alias="imageUrl")
-    sub_images_url: list[str] = Field(..., serialization_alias="subImagesUrl")
+    color_code: list[str] = Field([], alias="colorCode", validation_alias="color_code")
+    image_url: str = Field(..., alias="imageUrl", validation_alias="image_url")
+    sub_images_url: list[str] = Field(..., alias="subImagesUrl", validation_alias="sub_images_url")
     size: Optional['SizeVO']
-    created_date: int = Field(..., serialization_alias="createdDate")
-    last_modified_date: int = Field(..., serialization_alias="lastModifiedDate")
+    created_date: int = Field(..., alias="createdDate", validation_alias="created_date")
+    last_modified_date: int = Field(..., alias="lastModifiedDate", validation_alias="last_modified_date")
 
 
 class FilterOptions(BaseModel):
     brand: Optional[list[str]] = Field(None)
-    min_price: Optional[int] = Field(None, serialization_alias="minPrice")
-    max_price: Optional[int] = Field(None, serialization_alias="maxPrice")
+    min_price: Optional[int] = Field(None, alias="minPrice", validation_alias="min_price")
+    max_price: Optional[int] = Field(None, alias="maxPrice", validation_alias="max_price")
     keyword: Optional[str] = Field(None)
-    bag_size: Optional[list[str]] = Field(None, serialization_alias="bagSize")
+    bag_size: Optional[list[str]] = Field(None, alias="bagSize", validation_alias="bag_size")
     colors: Optional[list[str]] = Field(None)
 
 
@@ -75,17 +75,17 @@ class ProductDescVO(BaseModel):
 
 class ProductVO(BaseModel):
     id: Optional[str] = Field(None, alias="_id")
-    raw_id: str = Field(..., serialization_alias="rawId")
+    raw_id: str = Field(..., alias="rawId", validation_alias="raw_id")
     brand: str
     type: str
     sales: dict
     desc: dict
-    color_code: list[str] = Field([], serialization_alias="colorCode")
-    image_url: str = Field(..., serialization_alias="imageUrl")
-    sub_images_url: list[str] = Field([], serialization_alias="subImagesUrl")
+    color_code: list[str] = Field([], alias="colorCode", validation_alias="color_code")
+    image_url: str = Field(..., alias="imageUrl", validation_alias="image_url")
+    sub_images_url: list[str] = Field([], alias="subImagesUrl", validation_alias="sub_images_url")
     size: dict
-    created_date: int = Field(..., serialization_alias="createdDate")
-    last_modified_date: int = Field(..., serialization_alias="lastModifiedDate")
+    created_date: int = Field(..., alias="createdDate", validation_alias="created_date")
+    last_modified_date: int = Field(..., alias="lastModifiedDate", validation_alias="last_modified_date")
 
     def export(self, country: str, language: str) -> GetProductResult:
         return GetProductResult(
