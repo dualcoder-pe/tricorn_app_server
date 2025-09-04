@@ -26,6 +26,7 @@ jobs:
             # Assuming the repo is checked out in this directory on the VM
             cd tricorn_app_server_batch
             git pull
+            git checkout -b staging origin/staging
             echo "Batch scripts updated successfully."
 
       - name: Notify on Slack on success
