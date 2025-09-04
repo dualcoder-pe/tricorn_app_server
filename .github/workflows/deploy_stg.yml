@@ -96,7 +96,7 @@ jobs:
             mv docker-compose-stg.yml docker-compose.yml
             docker login -u ${{ secrets.DOCKER_LOGIN_ID }} -p ${{ secrets.DOCKER_LOGIN_R_PWD }}
             docker compose down --rmi all
-            docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION
+            docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:latest
             docker compose up -d
 
       - name: action-slack

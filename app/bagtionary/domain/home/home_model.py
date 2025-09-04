@@ -74,14 +74,14 @@ class GetHomeCategoryListItem(BaseModel):
 
 
 class GetHomeCategoryListResult(BaseModel):
-    category_list: list[GetHomeCategoryListItem] = Field([], alias="categoryList", validation_alias="category_list")
+    category_list: list[GetHomeCategoryListItem] = Field([], validation_alias="category_list", alias="categoryList")
 
 
 class GetHomeProductListItem(BaseModel):
     category: str = Field("unknown")
     title: str = Field("")
     products: list[ThumbnailProductVO] = Field([])
-    last_page: int = Field(-1, alias="lastPage", validation_alias="last_page")
+    last_page: int = Field(-1, validation_alias="last_page", alias="lastPage")
     brands: Optional[list[str]] = Field(None)
 
     def is_empty(self) -> bool:
