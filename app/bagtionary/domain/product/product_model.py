@@ -6,41 +6,41 @@ from pydantic import BaseModel, Field
 from core.util.constants import MAX_INT, WEEK_EPOCH_MILLIS
 from core.util.op_util import safe_dict_value
 
-
+# todo need to separate this api io model from db io model
 class GetProductListResult(BaseModel):
     products: list['ThumbnailProductVO'] = Field([])
-    last_page: int = Field(-1, alias="lastPage", validation_alias="last_page")
+    last_page: int = Field(-1, validation_alias="last_page", alias="lastPage")
     brands: Optional[list[str]] = Field(None)
 
 
 class GetProductResult(BaseModel):
-    raw_id: str = Field(..., alias="rawId", validation_alias="raw_id")
+    raw_id: str = Field(..., validation_alias="raw_id", alias="rawId")
     brand: str
     type: str
     language: str
     country: str
     price: list['PriceVO']
-    latest_price: 'PriceVO' = Field(..., alias="latestPrice", validation_alias="latest_price")
-    product_url: str = Field(..., alias="productUrl", validation_alias="product_url")
+    latest_price: 'PriceVO' = Field(..., validation_alias="latest_price", alias="latestPrice")
+    product_url: str = Field(..., validation_alias="product_url", alias="productUrl")
     name: str
     material: str
     description: str
     spec: str
     color: list[str]
-    color_code: list[str] = Field([], alias="colorCode", validation_alias="color_code")
-    image_url: str = Field(..., alias="imageUrl", validation_alias="image_url")
-    sub_images_url: list[str] = Field(..., alias="subImagesUrl", validation_alias="sub_images_url")
+    color_code: list[str] = Field([], validation_alias="color_code", alias="colorCode")
+    image_url: str = Field(..., validation_alias="image_url", alias="imageUrl")
+    sub_images_url: list[str] = Field(..., validation_alias="sub_images_url", alias="subImagesUrl")
     size: Optional['SizeVO']
-    created_date: int = Field(..., alias="createdDate", validation_alias="created_date")
-    last_modified_date: int = Field(..., alias="lastModifiedDate", validation_alias="last_modified_date")
+    created_date: int = Field(..., validation_alias="created_date", alias="createdDate")
+    last_modified_date: int = Field(..., validation_alias="last_modified_date", alias="lastModifiedDate")
 
 
 class FilterOptions(BaseModel):
     brand: Optional[list[str]] = Field(None)
-    min_price: Optional[int] = Field(None, alias="minPrice", validation_alias="min_price")
-    max_price: Optional[int] = Field(None, alias="maxPrice", validation_alias="max_price")
+    min_price: Optional[int] = Field(None, validation_alias="min_price", alias="minPrice")
+    max_price: Optional[int] = Field(None, validation_alias="max_price", alias="maxPrice")
     keyword: Optional[str] = Field(None)
-    bag_size: Optional[list[str]] = Field(None, alias="bagSize", validation_alias="bag_size")
+    bag_size: Optional[list[str]] = Field(None, validation_alias="bag_size", alias="bagSize")
     colors: Optional[list[str]] = Field(None)
 
 
@@ -75,17 +75,17 @@ class ProductDescVO(BaseModel):
 
 class ProductVO(BaseModel):
     id: Optional[str] = Field(None, alias="_id")
-    raw_id: str = Field(..., alias="rawId", validation_alias="raw_id")
+    raw_id: str = Field(..., alias="rawId")
     brand: str
     type: str
     sales: dict
     desc: dict
-    color_code: list[str] = Field([], alias="colorCode", validation_alias="color_code")
-    image_url: str = Field(..., alias="imageUrl", validation_alias="image_url")
-    sub_images_url: list[str] = Field([], alias="subImagesUrl", validation_alias="sub_images_url")
+    color_code: list[str] = Field([], alias="colorCode")
+    image_url: str = Field(..., alias="imageUrl")
+    sub_images_url: list[str] = Field([], alias="subImagesUrl")
     size: dict
-    created_date: int = Field(..., alias="createdDate", validation_alias="created_date")
-    last_modified_date: int = Field(..., alias="lastModifiedDate", validation_alias="last_modified_date")
+    created_date: int = Field(..., alias="createdDate")
+    last_modified_date: int = Field(..., alias="lastModifiedDate")
 
     def export(self, country: str, language: str) -> GetProductResult:
         return GetProductResult(

@@ -159,7 +159,7 @@ jobs:
           
           # 새 이미지 다운로드
           echo "Pulling new image: ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION"
-          docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION || { echo "Failed to pull image"; exit 1; }
+          docker pull ${{ secrets.DOCKER_LOGIN_ID }}/$APP:latest || { echo "Failed to pull image"; exit 1; }
           
           # 새 컨테이너 시작
           echo "Starting new containers"
@@ -167,7 +167,7 @@ jobs:
           
           # 배포 완료 확인
           echo "Deployment completed successfully"
-          docker ps --filter "ancestor=${{ secrets.DOCKER_LOGIN_ID }}/$APP:$VERSION"
+          docker ps --filter "ancestor=${{ secrets.DOCKER_LOGIN_ID }}/$APP:latest"
 
     - name: Notify on Slack if skipped
       if: steps.compare-versions.outputs.should_deploy == 'false'
